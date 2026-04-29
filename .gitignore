@@ -1,0 +1,5 @@
+bin/
+*.vcd
+*.vvp
+simv
+simv.exe

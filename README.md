@@ -55,14 +55,15 @@ gtkwave --version
 ## ▶️ Compilar e Executar
 
 ```bash
-iverilog -o simv src/*.v tb/tb_RISCVCPU.v
-vvp simv
+mkdir -p bin
+iverilog -o bin/simv src/*.v tb/tb_RISCVCPU.v
+cd bin && vvp simv && cd ..
 ```
 
 Waveform:
 
 ```bash
-gtkwave wave.vcd
+gtkwave bin/wave.vcd
 ```
 
 ---
