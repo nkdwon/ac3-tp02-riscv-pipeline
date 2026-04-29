@@ -27,6 +27,7 @@ module tb_RISCVCPU;
 
     initial begin
         run_full_dependencies();
+        run_forwarding_and_stalls();
         $finish;
     end
 
@@ -55,6 +56,18 @@ module tb_RISCVCPU;
             while(!halt) @(posedge clock);
             print_stats("full_dependencies");
             check_expected();
+            print_state_nonzero();
+        end
+    endtask
+
+    task run_forwarding_and_stalls;
+        begin
+            clear_memories();
+            load_program_forwarding_and_stalls();
+            reset_cpu();
+            while(!halt) @(posedge clock);
+            print_stats("forwarding_and_stalls");
+            check_expected_forwarding_and_stalls();
             print_state_nonzero();
         end
     endtask
@@ -92,6 +105,26 @@ module tb_RISCVCPU;
             cpu.IMemory[20] = 32'h00120393; // addi x7, x4, 1      # x7 = resultado final
 
             cpu.IMemory[21] = 32'h0000000b; // halt                # Instrução para finalizar a simulação
+        end
+    endtask
+
+    task load_program_forwarding_and_stalls;
+        begin
+            cpu.DMemory[0] = 32'd10;
+
+            // Programa sem NOPs artificiais para exercitar forwarding e stalls.
+            cpu.IMemory[0]  = 32'h00a00093; // addi x1,  x0, 10
+            cpu.IMemory[1]  = 32'h00508113; // addi x2,  x1, 5      # forwarding MEM
+            cpu.IMemory[2]  = 32'h00410193; // addi x3,  x2, 4      # forwarding MEM
+            cpu.IMemory[3]  = 32'h00002203; // lw   x4,  0(x0)
+            cpu.IMemory[4]  = 32'h00220293; // addi x5,  x4, 2      # load-use: 1 stall + WB load
+            cpu.IMemory[5]  = 32'h00502223; // sw   x5,  4(x0)      # forwarding do dado do store
+            cpu.IMemory[6]  = 32'h01400413; // addi x8,  x0, 20
+            cpu.IMemory[7]  = 32'h00100493; // addi x9,  x0, 1
+            cpu.IMemory[8]  = 32'h00340513; // addi x10, x8, 3      # forwarding WB ALU
+            cpu.IMemory[9]  = 32'h00002583; // lw   x11, 0(x0)
+            cpu.IMemory[10] = 32'h00b02423; // sw   x11, 8(x0)      # load-use: 1 stall + WB load
+            cpu.IMemory[11] = 32'h0000000b; // halt
         end
     endtask
 
@@ -202,6 +235,91 @@ module tb_RISCVCPU;
 
             $display("==============================\n");
             end
+    endtask
+
+    task check_expected_forwarding_and_stalls;
+        integer errors;
+        begin
+            errors = 0;
+
+            $display("\n==============================");
+            $display("CHECK FORWARDING AND STALLS");
+            $display("==============================");
+
+            if (cpu.Regs[1] !== 32'd10) begin
+                $display("FAIL: x1 expected 10, got %0d", cpu.Regs[1]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[2] !== 32'd15) begin
+                $display("FAIL: x2 expected 15, got %0d", cpu.Regs[2]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[3] !== 32'd19) begin
+                $display("FAIL: x3 expected 19, got %0d", cpu.Regs[3]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[4] !== 32'd10) begin
+                $display("FAIL: x4 expected 10, got %0d", cpu.Regs[4]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[5] !== 32'd12) begin
+                $display("FAIL: x5 expected 12, got %0d", cpu.Regs[5]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[8] !== 32'd20) begin
+                $display("FAIL: x8 expected 20, got %0d", cpu.Regs[8]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[9] !== 32'd1) begin
+                $display("FAIL: x9 expected 1, got %0d", cpu.Regs[9]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[10] !== 32'd23) begin
+                $display("FAIL: x10 expected 23, got %0d", cpu.Regs[10]);
+                errors = errors + 1;
+            end
+
+            if (cpu.Regs[11] !== 32'd10) begin
+                $display("FAIL: x11 expected 10, got %0d", cpu.Regs[11]);
+                errors = errors + 1;
+            end
+
+            if (cpu.DMemory[1] !== 32'd12) begin
+                $display("FAIL: DMemory[1] expected 12, got %0d", cpu.DMemory[1]);
+                errors = errors + 1;
+            end
+
+            if (cpu.DMemory[2] !== 32'd10) begin
+                $display("FAIL: DMemory[2] expected 10, got %0d", cpu.DMemory[2]);
+                errors = errors + 1;
+            end
+
+            if (cpu.stats.stall_count !== 32'd2) begin
+                $display("FAIL: stall_count expected 2, got %0d", cpu.stats.stall_count);
+                errors = errors + 1;
+            end
+
+            if (cpu.stats.bypass_count !== 32'd6) begin
+                $display("FAIL: bypass_count expected 6, got %0d", cpu.stats.bypass_count);
+                errors = errors + 1;
+            end
+
+            if (errors == 0) begin
+                $display("PASS: forwarding and stalls behaved as expected.");
+            end
+            else begin
+                $display("FAIL: %0d error(s) found.", errors);
+            end
+
+            $display("==============================\n");
+        end
     endtask
 
     task print_stats;

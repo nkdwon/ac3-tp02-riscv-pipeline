@@ -14,18 +14,48 @@ module HazardDetectionUnit (
     localparam BEQ   = 7'b110_0011;
     localparam ALUop = 7'b001_0011;
 
+    reg uses_rs1;
+    reg uses_rs2;
+
     initial begin
         stall = 1'b0;
     end
 
     always @(*) begin
         stall = 1'b0;
+        uses_rs1 = 1'b0;
+        uses_rs2 = 1'b0;
 
         // Load-use hazard:
         // If the instruction in EX/MEM is a load and the instruction in ID/EX
         // uses its destination register, the pipeline must stall one cycle.
 
-        // TODO: Implementar a lógica para detectar hazard causado por load aqui!!!
+        case (idex_op)
+            LW: begin
+                uses_rs1 = 1'b1; // base address
+            end
+
+            SW: begin
+                uses_rs1 = 1'b1; // base address
+                uses_rs2 = 1'b1; // data to store
+            end
+
+            BEQ: begin
+                uses_rs1 = 1'b1;
+                uses_rs2 = 1'b1;
+            end
+
+            ALUop: begin
+                uses_rs1 = 1'b1; // ADDI-style operation
+            end
+        endcase
+
+        if ((exmem_op == LW) && (exmem_rd != 5'd0)) begin
+            if ((uses_rs1 && (exmem_rd == idex_rs1)) ||
+                (uses_rs2 && (exmem_rd == idex_rs2))) begin
+                stall = 1'b1;
+            end
+        end
 
     end
 
