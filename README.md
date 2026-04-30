@@ -1,5 +1,13 @@
 # 📘 Trabalho Prático — Pipeline RISC-V
 
+# Integrantes
+
+- Vitor de Meira Gomes
+- Laura Menezes Her ́aclito Alves
+- Mateus Ribeiro Fernandes
+- Felipe Barros Ratton de Almeida
+
+
 ## 🎯 Objetivo
 
 Este projeto tem como objetivo permitir a simulação e análise de um processador RISC-V simplificado com pipeline, baseado no modelo apresentado no livro do Patterson.
